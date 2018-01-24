@@ -1,0 +1,18 @@
+{
+  "name": "sf-strore",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "async": "^2.6.0",
+    "connect-mongo": "^2.0.1",
+    "express": "^4.16.2",
+    "express-session": "^1.15.6",
+    "nodejs-websocket": "^1.7.1",
+    "passport": "^0.4.0",
+    "passport-local": "^1.0.0"
+  }
+}
