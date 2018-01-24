@@ -1,16 +1,44 @@
 var express = require('express'); 
-var app = express(); 
+
 var bodyParser = require('body-parser');
 var mongoose = require('mongoose');
-mongoose.connect('mongodb://127.0.0.1/sfstore');
-var conn = mongoose.connection;
+var app = express();
+var gfs;
+var upload;
+var storage;
 var multer = require('multer');
 var GridFsStorage = require('multer-gridfs-storage');
 var Grid = require('gridfs-stream');
-Grid.mongo = mongoose.mongo;
-var gfs = Grid(conn.db);
+
 const ObjectId = mongoose.Types.ObjectId;
 
+mongoose.connect('mongodb://127.0.0.1/sfstore',function(error) {
+    var conn = mongoose.connection;
+    Grid.mongo = mongoose.mongo;
+    gfs = Grid(conn.db);
+
+    storage = GridFsStorage({
+        gfs : gfs,
+        filename: function (req, file, callback) {
+            var datetimestamp = Date.now();
+            callback(null, file.fieldname + '-' + datetimestamp + '.' + file.originalname.split('.')[file.originalname.split('.').length -1]);
+        },    
+        metadata: function(req, file, callback) {
+            callback(null, { originalname: file.originalname });
+        },
+        root: 'scfiles' 
+    });
+    
+    upload = multer({
+        storage: storage
+    }).single('file');
+
+    app.listen('3000', function(){
+        console.log('running on 3000...');
+    });
+});
+
+app.use(bodyParser.json());
 
 //FOR DEBUG ONLY - Comment in prod
 app.use(function(req, res, next) {
@@ -21,15 +49,11 @@ app.use(function(req, res, next) {
     next();
 });
 
-app.use(bodyParser.json());
-
-
 function authenticationMiddleware () {
     return function (req, res, next) {
         if (req.isAuthenticated()) {
             return next()
         }
-
         res.status(404).json({
             responseCode: 1,
             responseMessage: "Not authorized"
@@ -37,26 +61,7 @@ function authenticationMiddleware () {
     }
 }
 
-
-var storage = GridFsStorage({
-    gfs : gfs,
-    filename: function (req, file, callback) {
-        var datetimestamp = Date.now();
-        callback(null, file.fieldname + '-' + datetimestamp + '.' + file.originalname.split('.')[file.originalname.split('.').length -1]);
-    },    
-    metadata: function(req, file, callback) {
-        callback(null, { originalname: file.originalname });
-    },
-    root: 'scfiles' 
-});
-
-var upload = multer({
-    storage: storage
-}).single('file');
-
-
-
-app.post('/fput'/*, authenticationMiddleware()*/,function(req, res) {    
+app.post('/fput',function(req, res) {    
     upload(req,res,function(err){       
         if(err){
              res.json({error_code:1,err_desc:err});
@@ -67,7 +72,7 @@ app.post('/fput'/*, authenticationMiddleware()*/,function(req, res) {
     });
 });
 
-app.get('/fget/:id'/*, authenticationMiddleware()*/, function(req, res){
+app.get('/fget/:id', function(req, res){
     gfs.collection('scfiles');
     var fid=new ObjectId(req.params.id);
     gfs.files.find({_id:fid}).toArray(function(err, files){
@@ -86,6 +91,3 @@ app.get('/fget/:id'/*, authenticationMiddleware()*/, function(req, res){
     });
 });
 
-app.listen('3000', function(){
-    console.log('running on 3000...');
-});
